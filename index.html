@@ -396,7 +396,9 @@
                 if (p.is_dead) return;
                 const avg = p.group_target === 'A' ? aa : ab;
                 if (avg < 60) {
-                    const l = p.lives - 1;
+                    // FIX: 若 p.lives 不存在（單人測試時），預設為 2
+                    const currentLives = (typeof p.lives === 'number') ? p.lives : 2;
+                    const l = currentLives - 1;
                     u[`${ROOM_ID}/players/${id}/lives`] = l;
                     if (l <= 0) u[`${ROOM_ID}/players/${id}/is_dead`] = true;
                 }
@@ -407,7 +409,23 @@
         }
 
         window.resetGame = async () => {
-            await set(ref(db, ROOM_ID), { game_state: { phase: 'waiting', round: 1, is_locked: false }, players: {}, round_result: {} });
+            // FIX: 重置時，預先填入所有玩家的初始資料
+            const initialPlayers = {};
+            for(let i=1; i<=8; i++) {
+                initialPlayers[i] = {
+                    name: ROLES[i],
+                    lives: 2,
+                    is_dead: false,
+                    food_target: "A",
+                    group_target: "A",
+                    current_energy: 0
+                };
+            }
+            await set(ref(db, ROOM_ID), { 
+                game_state: { phase: 'waiting', round: 1, is_locked: false }, 
+                players: initialPlayers, 
+                round_result: {} 
+            });
             window.location.reload();
         }
 
