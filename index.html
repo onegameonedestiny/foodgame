@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>星際遇難者：戀愛生存戰</title>
+    <title>星際遇難者：粉紅生存戰</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -11,7 +11,8 @@
             theme: {
                 extend: {
                     colors: {
-                        love: {
+                        // 定義一組暗粉色系，適合科幻生存又不刺眼
+                        rose: {
                             50: '#fff1f2',
                             100: '#ffe4e6',
                             200: '#fecdd3',
@@ -19,8 +20,22 @@
                             400: '#fb7185',
                             500: '#f43f5e',
                             600: '#e11d48',
+                            700: '#be123c',
                             800: '#9f1239',
                             900: '#881337',
+                            950: '#4c0519', // 深色背景用
+                        },
+                        // 外星陣營色 (粉紫)
+                        alien: {
+                            DEFAULT: '#d946ef', // fuchsia-500
+                            dark: '#701a75',    // fuchsia-900
+                            glow: '#f0abfc'     // fuchsia-300
+                        },
+                        // 地球陣營色 (青藍)
+                        earth: {
+                            DEFAULT: '#0ea5e9', // sky-500
+                            dark: '#0c4a6e',    // sky-900
+                            glow: '#7dd3fc'     // sky-300
                         }
                     }
                 }
@@ -97,8 +112,6 @@
         let allPlayers = {};
         let roundResult = {};
         let myData = {};
-        
-        // 本地變數：紀錄玩家是否已經「看過」這一回合的卡片
         let localSeenRound = 0;
 
         function getQueryParam(param) {
@@ -124,7 +137,6 @@
                 showView('admin-view');
             }
 
-            // 監聽狀態
             onValue(ref(db, `${ROOM_ID}/game_state`), (snapshot) => {
                 const val = snapshot.val();
                 if (val) {
@@ -135,15 +147,13 @@
                 }
             });
 
-            // 監聽玩家
             onValue(ref(db, `${ROOM_ID}/players`), (snapshot) => {
                 allPlayers = snapshot.val() || {};
                 if (myRole !== 9) {
                     myData = allPlayers[myRole] || {};
-                    // 在 Action 階段即時更新
                     if (globalState.phase === 'action') {
                         renderRealtimeStats(); 
-                        renderActionView(); // 更新自己的愛心狀態
+                        renderActionView();
                     }
                 } else {
                     renderAdminPanel();
@@ -155,6 +165,7 @@
                 if (globalState.phase === 'result') renderResultView();
             });
 
+            // 玩家自我註冊 (防呆用，主要還是靠 Admin 初始化)
             if (myRole !== 9) {
                 const myRef = ref(db, `${ROOM_ID}/players/${myRole}`);
                 const snap = await get(myRef);
@@ -175,7 +186,6 @@
 
         function handleGameStateChange() {
             const { phase, round } = globalState;
-            console.log(`[Phase Change] ${phase} - Day ${round}`);
             
             if (myRole === 9) {
                 showView('admin-view');
@@ -185,14 +195,11 @@
                     showView('waiting-view');
                 }
                 else if (phase === 'action') {
-                    // 核心邏輯：如果是 Action 階段，檢查玩家「是否已經看過本回合卡片」
                     if (round > localSeenRound) {
-                        // 還沒看過 -> 顯示抽卡畫面 (雖然全域是 Action)
                         showView('draw-view');
                         renderDrawCard(round);
                     } else {
-                        // 已經看過 -> 顯示抉擇畫面
-                        if (!document.getElementById('action-view').dataset.inited) initActionView();
+                        // 移除 initActionView 的呼叫，因為現在全部由 Admin 寫入
                         showView('action-view');
                         renderActionView();
                     }
@@ -210,30 +217,19 @@
             const cardId = GAME_SCRIPT[round][myRole - 1];
             const card = FOOD_DATA[cardId];
             
-            // 注意：這裡不需要再寫入 DB，因為 Admin 已經在切換階段時幫所有人寫入了
-            // 這裡純粹是前端顯示
-
             document.getElementById('draw-card-container').innerHTML = `
-                <div class="animate-bounce mb-6 text-7xl drop-shadow-lg">🎁</div>
-                <div class="bg-white/90 p-6 rounded-3xl border-4 border-love-300 shadow-xl max-w-xs mx-auto transform rotate-1">
-                    <h2 class="text-2xl font-black text-love-600 mb-2 tracking-wider">${card.name}</h2>
-                    <div class="text-love-800 text-sm mb-4 font-bold bg-love-50 py-2 px-3 rounded-lg">${card.desc}</div>
-                    <div class="text-5xl font-black text-love-500 neon-text-pink drop-shadow-sm">能量 ${card.score}</div>
+                <div class="animate-bounce mb-6 text-7xl drop-shadow-[0_0_15px_rgba(244,114,182,0.6)]">🎁</div>
+                <div class="bg-gray-800/90 p-6 rounded-3xl border-2 border-rose-500 shadow-xl max-w-xs mx-auto backdrop-blur-md">
+                    <h2 class="text-2xl font-black text-rose-400 mb-2 tracking-wider">${card.name}</h2>
+                    <div class="text-gray-300 text-sm mb-4 font-bold bg-gray-700/50 py-2 px-3 rounded-lg">${card.desc}</div>
+                    <div class="text-5xl font-black text-white neon-text-pink">能量 ${card.score}</div>
                 </div>
             `;
         }
 
-        // 玩家按下「確認收到」
         window.confirmDraw = function() {
-            localSeenRound = globalState.round; // 標記已讀
-            handleGameStateChange(); // 重新觸發路由，會跳轉到 Action View
-        }
-
-        function initActionView() {
-            const randFood = Math.random() < 0.5 ? "A" : "B";
-            const randGroup = Math.random() < 0.5 ? "A" : "B";
-            update(ref(db, `${ROOM_ID}/players/${myRole}`), { food_target: randFood, group_target: randGroup });
-            document.getElementById('action-view').dataset.inited = "true";
+            localSeenRound = globalState.round;
+            handleGameStateChange();
         }
 
         function renderActionView() {
@@ -244,19 +240,17 @@
             
             document.getElementById('round-num').innerText = round;
 
-            // 1. 食物置中顯示
             document.getElementById('my-food-display').innerHTML = `
                 <div class="text-center">
-                    <div class="text-love-800 text-sm font-bold mb-1 bg-love-100 inline-block px-3 py-1 rounded-full">以下是你獲得的食物</div>
-                    <div class="text-3xl font-black text-love-600 drop-shadow-md mt-2">${card.name} <span class="text-xl text-love-400">(${card.score})</span></div>
+                    <div class="text-rose-300 text-xs font-bold mb-1 bg-rose-900/50 inline-block px-3 py-1 rounded-full border border-rose-800">您獲得的物資</div>
+                    <div class="text-2xl font-black text-white mt-2">${card.name} <span class="text-xl text-rose-400">(${card.score})</span></div>
                 </div>
             `;
 
-            // 2. 愛心生命值
             document.getElementById('my-lives-display').innerHTML = `
-                <div class="flex items-center gap-2 bg-white/60 px-4 py-2 rounded-full border border-love-200">
-                    <span class="text-love-800 font-bold text-sm">生命值</span>
-                    <div class="flex gap-1 text-love-500 drop-shadow-sm text-xl">
+                <div class="flex items-center gap-2 bg-gray-900/60 px-4 py-2 rounded-full border border-rose-900">
+                    <span class="text-rose-400 font-bold text-sm">生命</span>
+                    <div class="flex gap-1 text-rose-500 drop-shadow-sm text-xl">
                         ${renderHearts(myData.lives)}
                     </div>
                 </div>
@@ -271,7 +265,7 @@
 
         function renderHearts(count) {
             let h = '';
-            for(let i=0; i<2; i++) h += `<i class="fa-${i < count ? 'solid' : 'regular'} fa-heart ${i >= count ? 'opacity-30' : ''} transform hover:scale-110 transition"></i>`;
+            for(let i=0; i<2; i++) h += `<i class="fa-${i < count ? 'solid' : 'regular'} fa-heart ${i >= count ? 'opacity-30' : ''} transform"></i>`;
             return h;
         }
 
@@ -295,22 +289,23 @@
         function updateToggleButton(type, val) {
             const a = document.getElementById(`btn-${type}-a`), b = document.getElementById(`btn-${type}-b`);
             if (!a || !b) return;
-            // 戀愛風格：A=紫/粉 B=藍/青
-            const activeClassA = 'ring-4 ring-love-300 scale-105 bg-love-100 text-love-600 border-love-400 shadow-love-200 shadow-lg';
-            const activeClassB = 'ring-4 ring-sky-300 scale-105 bg-sky-100 text-sky-600 border-sky-400 shadow-sky-200 shadow-lg';
-            const inactiveClass = 'opacity-60 grayscale-[0.5] scale-95 border-transparent bg-white/20 text-gray-500';
+            
+            // 強烈的選中狀態 (高亮、實心、邊框)
+            const activeClassA = 'bg-alien text-white border-alien-glow shadow-[0_0_15px_rgba(217,70,239,0.5)] ring-2 ring-alien-glow scale-105 opacity-100 z-10';
+            const activeClassB = 'bg-earth text-white border-earth-glow shadow-[0_0_15px_rgba(14,165,233,0.5)] ring-2 ring-earth-glow scale-105 opacity-100 z-10';
+            
+            // 未選中狀態 (暗淡、透明、縮小)
+            const inactiveClass = 'bg-gray-800/50 text-gray-500 border-gray-700 opacity-50 scale-95 hover:opacity-80';
 
-            // Reset
-            [a, b].forEach(btn => {
-                btn.className = `w-full py-4 rounded-2xl font-bold transition-all duration-300 border-2 flex flex-col items-center justify-center gap-1 ${inactiveClass}`;
-            });
+            // Reset base classes
+            const baseClass = "w-full rounded-2xl font-bold transition-all duration-300 border-2 flex flex-col items-center justify-center gap-1 relative";
 
             if (type === 'food') {
-                if (val === 'A') a.className = `w-full py-4 rounded-2xl font-bold transition-all duration-300 border-2 flex flex-col items-center justify-center gap-1 ${activeClassA}`;
-                else b.className = `w-full py-4 rounded-2xl font-bold transition-all duration-300 border-2 flex flex-col items-center justify-center gap-1 ${activeClassB}`;
+                a.className = `${baseClass} py-4 ${val === 'A' ? activeClassA : inactiveClass}`;
+                b.className = `${baseClass} py-4 ${val === 'B' ? activeClassB : inactiveClass}`;
             } else {
-                if (val === 'A') a.className = `w-full py-6 rounded-2xl font-bold transition-all duration-300 border-2 flex flex-col items-center justify-center gap-1 ${activeClassA}`;
-                else b.className = `w-full py-6 rounded-2xl font-bold transition-all duration-300 border-2 flex flex-col items-center justify-center gap-1 ${activeClassB}`;
+                a.className = `${baseClass} py-6 ${val === 'A' ? activeClassA : inactiveClass}`;
+                b.className = `${baseClass} py-6 ${val === 'B' ? activeClassB : inactiveClass}`;
             }
         }
 
@@ -318,31 +313,31 @@
             if (!roundResult.avg_A) return;
             const myAvg = myData.group_target === 'A' ? roundResult.avg_A : roundResult.avg_B;
             const isSafe = myAvg >= 60;
-            const colorClass = isSafe ? 'text-green-500' : 'text-love-500';
             
             document.getElementById('result-content').innerHTML = `
                 <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-white/50 p-3 rounded-2xl border border-love-200 shadow-sm">
-                        <div class="text-xs text-love-400 font-bold mb-1">外星人能量</div>
-                        <div class="text-3xl font-black text-love-600">${roundResult.energy_A}</div>
+                    <div class="bg-gray-800/80 p-3 rounded-2xl border border-alien shadow-lg">
+                        <div class="text-xs text-alien-glow font-bold mb-1">外星人能量</div>
+                        <div class="text-3xl font-black text-alien">${roundResult.energy_A}</div>
                     </div>
-                    <div class="bg-white/50 p-3 rounded-2xl border border-sky-200 shadow-sm">
-                        <div class="text-xs text-sky-400 font-bold mb-1">地球人能量</div>
-                        <div class="text-3xl font-black text-sky-600">${roundResult.energy_B}</div>
+                    <div class="bg-gray-800/80 p-3 rounded-2xl border border-earth shadow-lg">
+                        <div class="text-xs text-earth-glow font-bold mb-1">地球人能量</div>
+                        <div class="text-3xl font-black text-earth">${roundResult.energy_B}</div>
                     </div>
                 </div>
-                <div class="bg-white/80 p-4 rounded-2xl mb-6 shadow-md border-2 border-love-100 flex justify-around">
-                    <div class="${roundResult.avg_A >= 60 ? 'text-green-500 font-bold' : 'text-love-500 font-bold'}">
+                <div class="bg-gray-900/80 p-4 rounded-2xl mb-6 shadow-md border border-gray-700 flex justify-around">
+                    <div class="${roundResult.avg_A >= 60 ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}">
                         外星均分: ${Math.floor(roundResult.avg_A)}
                     </div>
-                    <div class="w-px bg-gray-300"></div>
-                    <div class="${roundResult.avg_B >= 60 ? 'text-green-500 font-bold' : 'text-love-500 font-bold'}">
+                    <div class="w-px bg-gray-600"></div>
+                    <div class="${roundResult.avg_B >= 60 ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}">
                         地球均分: ${Math.floor(roundResult.avg_B)}
                     </div>
                 </div>
-                <div class="text-center py-8 border-4 border-dashed ${isSafe ? 'border-green-300 bg-green-50' : 'border-love-300 bg-love-50'} rounded-3xl transform rotate-1">
-                     <i class="fa-solid ${isSafe ? 'fa-heart text-green-400' : 'fa-heart-crack text-love-500'} text-7xl mb-4 drop-shadow-md"></i>
-                     <h2 class="text-3xl font-black text-gray-700">${isSafe ? '戀愛存活' : '心碎受傷'}</h2>
+                <div class="text-center py-8 border-4 border-dashed ${isSafe ? 'border-green-500/50 bg-green-900/20' : 'border-red-500/50 bg-red-900/20'} rounded-3xl">
+                     <i class="fa-solid ${isSafe ? 'fa-shield-heart text-green-400' : 'fa-heart-crack text-red-500'} text-7xl mb-4 drop-shadow-lg"></i>
+                     <h2 class="text-3xl font-black text-white">${isSafe ? '生存確認' : '受到傷害'}</h2>
+                     <p class="text-sm mt-2 ${isSafe ? 'text-green-300' : 'text-red-300'}">${isSafe ? '能量補給充足' : '能量不足，生命值下降'}</p>
                 </div>
             `;
         }
@@ -357,21 +352,19 @@
             let btns = '';
             const p = globalState.phase;
             
-            // 主持人按鈕邏輯：發送食物與開始抉擇合併
-            if (p === 'waiting') btns = `<button onclick="adminStartRound(1)" class="w-full bg-love-500 hover:bg-love-600 text-white py-4 rounded-xl font-bold shadow-lg transition transform hover:scale-105">💖 開啟第一天戀愛抉擇</button>`;
-            else if (p === 'action') btns = `<button onclick="adminCalculate()" class="w-full bg-sky-600 hover:bg-sky-500 text-white py-4 rounded-xl font-bold shadow-lg transition transform hover:scale-105">🔒 鎖定並結算真心</button>`;
-            else if (p === 'result') btns = `<button onclick="${globalState.round < 3 ? `adminStartRound(${globalState.round + 1})` : "adminSetPhase('end')"}" class="w-full bg-yellow-500 hover:bg-yellow-400 text-white py-4 rounded-xl font-bold shadow-lg transition transform hover:scale-105">${globalState.round < 3 ? '💘 進入下一天' : '🏁 結束遊戲'}</button>`;
+            // 主持人按鈕：開始回合時，會自動幫所有人分配隨機選項
+            if (p === 'waiting') btns = `<button onclick="adminStartRound(1)" class="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-bold shadow-lg transition transform hover:scale-105">🚀 開啟第一天 (自動佈局)</button>`;
+            else if (p === 'action') btns = `<button onclick="adminCalculate()" class="w-full bg-gray-600 hover:bg-gray-500 text-white py-4 rounded-xl font-bold shadow-lg transition transform hover:scale-105">🔒 鎖定並結算</button>`;
+            else if (p === 'result') btns = `<button onclick="${globalState.round < 3 ? `adminStartRound(${globalState.round + 1})` : "adminSetPhase('end')"}" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white py-4 rounded-xl font-bold shadow-lg transition transform hover:scale-105">${globalState.round < 3 ? '🌅 進入下一天 (自動佈局)' : '🏁 結束遊戲'}</button>`;
             else btns = `<button onclick="resetGame()" class="w-full border-2 border-red-400 text-red-500 py-2 rounded-xl">重置遊戲</button>`;
             ctrl.innerHTML = btns;
 
-            // 即時人數計算
             let stats = { A_pop: 0, B_pop: 0, A_eng: 0, B_eng: 0 };
             let playersHtml = `<div class="mt-4 space-y-2">`;
             Object.keys(ROLES).forEach(id => {
                 if (id == 9) return;
                 const player = allPlayers[id] || { name: ROLES[id], lives: 2, is_dead: false };
                 
-                // 計算即時數據
                 if (!player.is_dead) {
                     if (player.group_target === 'A') stats.A_pop++; else stats.B_pop++;
                     const score = player.current_energy || 0;
@@ -379,48 +372,52 @@
                 }
 
                 playersHtml += `<div class="flex justify-between items-center text-xs p-2 bg-gray-800 rounded border border-gray-700 ${player.is_dead ? 'opacity-50 line-through' : ''}">
-                    <span class="text-gray-300">${player.name} <span class="text-love-400">(${player.lives}❤)</span> <span class="text-gray-500">[${player.current_energy}]</span></span>
+                    <span class="text-gray-300">${player.name} <span class="text-rose-400">(${player.lives}❤)</span> <span class="text-gray-500">[${player.current_energy}]</span></span>
                     <div class="flex gap-2">
-                        <span class="px-2 py-0.5 rounded ${player.food_target==='A'?'bg-love-900 text-love-300':'bg-sky-900 text-sky-300'}">食:${player.food_target}</span>
-                        <span class="px-2 py-0.5 rounded ${player.group_target==='A'?'bg-love-900 text-love-300':'bg-sky-900 text-sky-300'}">人:${player.group_target}</span>
+                        <span class="px-2 py-0.5 rounded ${player.food_target==='A'?'bg-alien text-white':'bg-earth text-white'}">食:${player.food_target}</span>
+                        <span class="px-2 py-0.5 rounded ${player.group_target==='A'?'bg-alien text-white':'bg-earth text-white'}">人:${player.group_target}</span>
                     </div>
                 </div>`;
             });
             document.getElementById('admin-players').innerHTML = playersHtml + `</div>`;
 
-            // 主持人即時看板
             document.getElementById('admin-summary').innerHTML = `
                 <div class="grid grid-cols-2 gap-2 mb-4">
-                    <div class="bg-love-900 p-2 rounded text-center border border-love-700">
-                        <div class="text-love-300 text-xs">外星人 (A)</div>
+                    <div class="bg-alien-dark p-2 rounded text-center border border-alien">
+                        <div class="text-alien-glow text-xs">外星人 (A)</div>
                         <div class="text-white font-bold text-lg">${stats.A_eng} 能 / ${stats.A_pop} 人</div>
                     </div>
-                    <div class="bg-sky-900 p-2 rounded text-center border border-sky-700">
-                        <div class="text-sky-300 text-xs">地球人 (B)</div>
+                    <div class="bg-earth-dark p-2 rounded text-center border border-earth">
+                        <div class="text-earth-glow text-xs">地球人 (B)</div>
                         <div class="text-white font-bold text-lg">${stats.B_eng} 能 / ${stats.B_pop} 人</div>
                     </div>
                 </div>
             `;
         }
 
-        // 修改：StartRound 會同時寫入 DB 並切換 Phase
+        // 關鍵修改：Admin 在開始回合時，直接寫入所有人的隨機選項
         window.adminStartRound = async (round) => {
             const updates = {};
             updates[`${ROOM_ID}/game_state/phase`] = 'action';
             updates[`${ROOM_ID}/game_state/round`] = round;
             updates[`${ROOM_ID}/game_state/is_locked`] = false;
             
-            // 寫入所有人的卡片
             for (let i = 1; i <= 8; i++) {
                 const cardId = GAME_SCRIPT[round][i-1];
                 const card = FOOD_DATA[cardId];
+                
+                // 1. 發牌
                 updates[`${ROOM_ID}/players/${i}/current_energy`] = card.score;
                 updates[`${ROOM_ID}/players/${i}/current_card_name`] = card.name;
+                
+                // 2. 自動分配隨機選項 (這樣 Admin 一個人也能測試)
+                const randFood = Math.random() < 0.5 ? "A" : "B";
+                const randGroup = Math.random() < 0.5 ? "A" : "B";
+                updates[`${ROOM_ID}/players/${i}/food_target`] = randFood;
+                updates[`${ROOM_ID}/players/${i}/group_target`] = randGroup;
             }
             
-            // 清空 Result (如果是新的一輪)
             updates[`${ROOM_ID}/round_result`] = {};
-
             await update(ref(db), updates);
         };
 
@@ -462,12 +459,11 @@
         init();
     </script>
     <style>
-        /* 字體設定：圓潤風格 */
+        /* 字體設定 */
         body { font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif; }
         
-        /* 霓虹與發光特效 */
+        /* 霓虹特效 */
         .neon-text-pink { text-shadow: 0 0 5px #f43f5e, 0 0 10px #f43f5e; }
-        .neon-text-blue { text-shadow: 0 0 5px #0ea5e9, 0 0 10px #0ea5e9; }
         
         /* 背景動畫 */
         @keyframes float {
@@ -478,35 +474,35 @@
         .float-anim { animation: float 3s ease-in-out infinite; }
     </style>
 </head>
-<body class="bg-gradient-to-br from-orange-50 via-pink-100 to-rose-200 min-h-screen flex items-center justify-center p-4">
+<body class="bg-rose-950 min-h-screen flex items-center justify-center p-4">
 
-    <!-- 主容器：毛玻璃質感 -->
-    <div id="app" class="w-full max-w-md h-[92vh] bg-white/40 backdrop-blur-xl border-2 border-white/60 shadow-[0_20px_50px_rgba(244,63,94,0.3)] relative overflow-hidden rounded-[40px]">
+    <!-- 主容器：深色玻璃質感，護眼且科幻 -->
+    <div id="app" class="w-full max-w-md h-[92vh] bg-rose-900/40 backdrop-blur-xl border border-rose-500/30 shadow-[0_0_50px_rgba(244,63,94,0.2)] relative overflow-hidden rounded-[30px]">
         <div id="app-inner" class="p-6 h-full flex flex-col">
             
             <!-- === 等待畫面 === -->
             <div id="waiting-view" class="view-section hidden h-full flex flex-col justify-center items-center text-center">
                 <div class="mb-8 float-anim">
-                    <i class="fa-solid fa-heart-pulse text-8xl text-love-500 drop-shadow-xl"></i>
+                    <i class="fa-solid fa-shuttle-space text-8xl text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]"></i>
                 </div>
-                <h1 class="text-xl text-love-800 font-bold mb-2">歡迎來到</h1>
-                <h2 class="text-2xl font-black text-love-600 mb-6 tracking-widest">星際戀愛聯誼</h2>
-                <div class="bg-white/80 px-6 py-4 rounded-3xl shadow-lg border border-love-200 mb-8 transform -rotate-2">
-                    <div class="text-gray-500 text-xs mb-1">您的身分是</div>
-                    <div id="waiting-name" class="text-4xl font-black text-love-500">...</div>
+                <h1 class="text-xl text-rose-300 font-bold mb-2">連結建立中...</h1>
+                <h2 class="text-3xl font-black text-white mb-6 tracking-widest neon-text-pink">星際遇難者</h2>
+                <div class="bg-gray-900/80 px-6 py-4 rounded-2xl shadow-lg border border-rose-800 mb-8">
+                    <div class="text-gray-400 text-xs mb-1">指揮官識別</div>
+                    <div id="waiting-name" class="text-3xl font-black text-rose-500">...</div>
                 </div>
-                <div class="flex items-center gap-2 text-love-500 bg-love-50 px-4 py-2 rounded-full border border-love-200 animate-pulse">
-                    <i class="fa-solid fa-spinner animate-spin"></i>
-                    <span>等待配對開始...</span>
+                <div class="flex items-center gap-2 text-rose-300 bg-rose-900/50 px-4 py-2 rounded-full border border-rose-700 animate-pulse">
+                    <i class="fa-solid fa-radar animate-spin"></i>
+                    <span>等待艦隊指令...</span>
                 </div>
             </div>
 
             <!-- === 抽卡畫面 (本地端) === -->
             <div id="draw-view" class="view-section hidden h-full flex flex-col p-4">
-                <h1 class="text-center text-love-400 font-bold mb-4 mt-8 uppercase tracking-widest">今日運勢掃描</h1>
+                <h1 class="text-center text-rose-400 font-bold mb-4 mt-8 uppercase tracking-widest">物資掃描完成</h1>
                 <div id="draw-card-container" class="flex-1 flex flex-col justify-center items-center text-center"></div>
-                <button onclick="confirmDraw()" class="w-full py-5 bg-gradient-to-r from-love-400 to-love-500 text-white rounded-3xl font-black text-xl shadow-love-300 shadow-xl mt-8 hover:scale-105 transition-transform flex items-center justify-center gap-2">
-                    <span>收下這份心意</span> <i class="fa-solid fa-circle-chevron-right"></i>
+                <button onclick="confirmDraw()" class="w-full py-5 bg-gradient-to-r from-rose-600 to-rose-500 text-white rounded-2xl font-black text-xl shadow-lg mt-8 hover:scale-105 transition-transform flex items-center justify-center gap-2 border border-rose-400">
+                    <span>確認接收</span> <i class="fa-solid fa-box-open"></i>
                 </button>
             </div>
 
@@ -514,100 +510,98 @@
             <div id="action-view" class="view-section hidden h-full flex flex-col">
                 <!-- 頂部資訊 -->
                 <div class="flex justify-between items-center mb-4 px-2">
-                    <div class="text-love-800 font-black text-xl flex items-center gap-2">
-                        <i class="fa-regular fa-calendar-check"></i> Day <span id="round-num" class="text-2xl">1</span>
+                    <div class="text-white font-black text-xl flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-rose-500"></i> Day <span id="round-num" class="text-2xl text-rose-400">1</span>
                     </div>
                     <div id="my-lives-display"></div>
                 </div>
 
                 <!-- 自己的食物 (置中大圖) -->
-                <div id="my-food-display" class="bg-white/60 p-4 rounded-3xl border border-white mb-4 shadow-sm relative overflow-hidden">
+                <div id="my-food-display" class="bg-gray-900/60 p-4 rounded-3xl border border-rose-900 mb-4 shadow-lg relative overflow-hidden">
                     <!-- JS Insert -->
                 </div>
 
-                <div id="ghost-alert" class="hidden text-xs text-center text-white bg-gray-400/80 px-2 py-1 rounded-lg mb-2">👻 幽靈模式：無法貢獻與佔位</div>
+                <div id="ghost-alert" class="hidden text-xs text-center text-gray-400 bg-gray-800 px-2 py-1 rounded-lg mb-2 border border-gray-600">👻 幽靈模式：無實體狀態</div>
 
                 <!-- 規則提示卡 -->
-                <div class="bg-love-500/10 border border-love-500/30 p-3 rounded-2xl mb-4 text-center">
-                    <div class="text-xs text-love-600 font-bold flex items-center justify-center gap-1">
+                <div class="bg-rose-950/50 border border-rose-800 p-3 rounded-2xl mb-4 text-center">
+                    <div class="text-xs text-rose-400 font-bold flex items-center justify-center gap-1">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>生存法則</span>
                     </div>
-                    <div class="text-sm text-love-800 font-bold mt-1">
-                        陣營總能量 ÷ 人數 < 60 <i class="fa-solid fa-arrow-right mx-1"></i> 💔 扣一命
+                    <div class="text-sm text-gray-200 font-bold mt-1">
+                        陣營總能量 ÷ 人數 < 60 <i class="fa-solid fa-arrow-right mx-1 text-rose-500"></i> 💔 扣一命
                     </div>
                 </div>
 
                 <!-- 即時戰況 -->
                 <div class="grid grid-cols-2 gap-3 mb-6">
-                    <div class="bg-love-50 p-3 rounded-2xl border border-love-200 text-center shadow-sm">
-                        <div class="text-xs text-love-400 font-bold mb-1">外星人能量</div>
-                        <div id="stat-energy-a" class="text-3xl font-black text-love-500">0</div>
+                    <div class="bg-gray-900/80 p-3 rounded-2xl border border-alien-dark text-center shadow-lg relative overflow-hidden">
+                        <div class="absolute inset-0 bg-alien/5 pointer-events-none"></div>
+                        <div class="text-xs text-alien-glow font-bold mb-1">外星人能量</div>
+                        <div id="stat-energy-a" class="text-3xl font-black text-alien">0</div>
                     </div>
-                    <div class="bg-sky-50 p-3 rounded-2xl border border-sky-200 text-center shadow-sm">
-                        <div class="text-xs text-sky-400 font-bold mb-1">地球人能量</div>
-                        <div id="stat-energy-b" class="text-3xl font-black text-sky-500">0</div>
+                    <div class="bg-gray-900/80 p-3 rounded-2xl border border-earth-dark text-center shadow-lg relative overflow-hidden">
+                        <div class="absolute inset-0 bg-earth/5 pointer-events-none"></div>
+                        <div class="text-xs text-earth-glow font-bold mb-1">地球人能量</div>
+                        <div id="stat-energy-b" class="text-3xl font-black text-earth">0</div>
                     </div>
                 </div>
 
                 <!-- 操作區 -->
-                <div class="space-y-4 flex-1">
+                <div class="space-y-5 flex-1">
                     <div>
-                        <label class="text-xs text-gray-500 mb-2 block font-bold px-2">💝 將你的食物心意送給...</label>
+                        <label class="text-xs text-gray-400 mb-2 block font-bold px-2 tracking-wider">📦 傳輸物資給...</label>
                         <div class="grid grid-cols-2 gap-3">
-                            <button id="btn-food-a" onclick="toggleChoice('food', 'A')" class="rounded-2xl transition-all">外星人</button>
-                            <button id="btn-food-b" onclick="toggleChoice('food', 'B')" class="rounded-2xl transition-all">地球人</button>
+                            <button id="btn-food-a" onclick="toggleChoice('food', 'A')">外星人</button>
+                            <button id="btn-food-b" onclick="toggleChoice('food', 'B')">地球人</button>
                         </div>
                     </div>
                     <div>
-                        <label class="text-xs text-gray-500 mb-2 block font-bold px-2">🏃 你的身體要前往...</label>
+                        <label class="text-xs text-gray-400 mb-2 block font-bold px-2 tracking-wider">🚀 移動身體至...</label>
                         <div class="grid grid-cols-2 gap-3 h-24">
-                            <button id="btn-group-a" onclick="toggleChoice('group', 'A')" class="rounded-2xl transition-all">
+                            <button id="btn-group-a" onclick="toggleChoice('group', 'A')">
                                 <i class="fa-brands fa-reddit-alien text-2xl mb-1"></i> 外星人
                             </button>
-                            <button id="btn-group-b" onclick="toggleChoice('group', 'B')" class="rounded-2xl transition-all">
+                            <button id="btn-group-b" onclick="toggleChoice('group', 'B')">
                                 <i class="fa-solid fa-earth-americas text-2xl mb-1"></i> 地球人
                             </button>
                         </div>
                     </div>
                 </div>
                 
-                <div class="text-center text-xs text-love-300 mt-2">等待主持人結算真心...</div>
+                <div class="text-center text-xs text-rose-800/50 mt-2 font-mono">WAITING FOR SERVER SYNC...</div>
             </div>
 
             <!-- === 結果畫面 === -->
             <div id="result-view" class="view-section hidden h-full flex flex-col">
-                <h1 class="text-center text-2xl font-black text-love-800 mb-8 mt-4 uppercase tracking-wider">今日配對結果</h1>
+                <h1 class="text-center text-2xl font-black text-white mb-8 mt-4 uppercase tracking-wider neon-text-pink">生存報告</h1>
                 <div id="result-content" class="flex-1 flex flex-col justify-center"></div>
-                <div class="mt-auto text-center text-love-400 text-sm animate-pulse mb-4">
-                    等待下一回合的相遇...
+                <div class="mt-auto text-center text-rose-400 text-sm animate-pulse mb-4">
+                    等待下一回合指令...
                 </div>
             </div>
 
             <!-- === 結束畫面 === -->
             <div id="end-view" class="view-section hidden h-full flex flex-col justify-center items-center text-center">
                 <div class="mb-6 float-anim">
-                    <i class="fa-solid fa-champagne-glasses text-7xl text-yellow-500 drop-shadow-lg"></i>
+                    <i class="fa-solid fa-flag-checkered text-7xl text-yellow-500 drop-shadow-lg"></i>
                 </div>
-                <h1 class="text-4xl font-black text-love-600 mb-4">活動圓滿結束</h1>
-                <p class="text-gray-600">存活的戀人們，恭喜你們配對成功！</p>
-                <div class="mt-12 text-sm text-love-300">星際遇難者：戀愛篇</div>
+                <h1 class="text-4xl font-black text-white mb-4 neon-text-pink">生存戰結束</h1>
+                <p class="text-gray-400">存活的指揮官，恭喜完成任務！</p>
+                <div class="mt-12 text-sm text-rose-800">Mission Complete</div>
             </div>
 
-            <!-- === 管理員畫面 (黑底保持專業感，但微調) === -->
-            <div id="admin-view" class="view-section hidden absolute inset-0 bg-gray-900 z-50 flex flex-col p-4 overflow-y-auto">
-                <h1 class="text-love-500 font-bold mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-user-secret"></i> 戀愛導師 (GM) 控制台
+            <!-- === 管理員畫面 === -->
+            <div id="admin-view" class="view-section hidden absolute inset-0 bg-gray-950 z-50 flex flex-col p-4 overflow-y-auto">
+                <h1 class="text-rose-500 font-bold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-terminal"></i> GM 控制台
                 </h1>
                 
-                <!-- 即時看板 -->
                 <div id="admin-summary"></div>
-
-                <div id="admin-status" class="text-xs font-mono mb-4 bg-black p-2 rounded text-gray-300 border border-gray-700"></div>
-                
+                <div id="admin-status" class="text-xs font-mono mb-4 bg-black p-2 rounded text-gray-400 border border-gray-800"></div>
                 <div id="admin-controls" class="space-y-3 mb-4"></div>
-                
-                <div id="admin-players" class="flex-1 overflow-y-auto bg-gray-900/50 rounded-xl border border-gray-800 p-2"></div>
+                <div id="admin-players" class="flex-1 overflow-y-auto bg-gray-900 rounded-xl border border-gray-800 p-2"></div>
             </div>
 
         </div>
