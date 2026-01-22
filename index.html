@@ -82,8 +82,29 @@
 
         function getParam(name) {
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name);
+            let val = urlParams.get(name);
+            
+            // 如果直接參數抓不到，嘗試從 liff.state 抓取
+            if (!val) {
+                const liffState = urlParams.get('liff.state');
+                if (liffState) {
+                    // liff.state 通常是被 URL 編碼過的 (例如 %3Frole%3D2)
+                    // 解碼後變成 ?role=2
+                    try {
+                        const decodedState = decodeURIComponent(liffState);
+                        // 去掉可能存在的開頭 ? (URLSearchParams 有時會處理，但保險起見)
+                        const cleanState = decodedState.startsWith('?') ? decodedState.substring(1) : decodedState;
+                        const stateParams = new URLSearchParams(cleanState);
+                        val = stateParams.get(name);
+                        console.log(`Parsed ${name} from liff.state: ${val}`);
+                    } catch (e) {
+                        console.error("Error parsing liff.state", e);
+                    }
+                }
+            }
+            return val;
         }
+
 
         async function init() {
             let roleParam = getParam("role") || "1";
