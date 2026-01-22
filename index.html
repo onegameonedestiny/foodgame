@@ -496,37 +496,39 @@
     </div>
 
 <!-- 3. 抉擇畫面 (Action) - 已壓縮版面以適應手機單屏 -->
+<!-- 3. 抉擇畫面 (Action) - 已修復 ID 遺失問題並進一步縮減版面 -->
     <div id="action-view" class="page-view hidden h-full flex flex-col p-2">
-        <!-- 頂部資訊列：Day 與 生命值 (併成一行) -->
-        <div class="flex justify-between items-center bg-panel px-4 py-2 rounded-xl border border-gray-700 mb-2 flex-none">
+        <!-- 頂部資訊列 -->
+        <div class="flex justify-between items-center bg-panel px-4 py-1.5 rounded-xl border border-gray-700 mb-2 flex-none">
             <div id="info-day" class="text-xl font-black text-earth">Day 1</div>
             <div id="info-lives" class="text-lg font-bold text-white tracking-tighter">生命 ❤️❤️</div>
         </div>
 
-        <!-- 獲取食物資訊 (高度大幅縮小) -->
+        <!-- 獲取食物資訊 -->
         <div class="bg-panel p-2 rounded-xl border-2 border-gray-600 mb-2 text-center shadow-lg flex-none">
-            <div class="text-gray-400 text-xs font-bold">當前獲取食物</div>
+            <div class="text-gray-400 text-[10px] font-bold uppercase tracking-widest">當前獲取食物</div>
             <div class="flex items-center justify-center gap-3">
                 <div id="act-food-name" class="text-2xl font-black text-white leading-tight">...</div>
                 <div id="act-food-score" class="text-xl font-bold text-yellow-400">...</div>
             </div>
         </div>
 
-        <!-- 幽靈狀態與規則提示 (合併或縮小) -->
-        <div id="ghost-msg" class="hidden bg-gray-800 text-gray-400 p-1 rounded-lg text-center mb-1 font-bold text-sm border border-gray-600 flex-none">👻 幽靈狀態</div>
+        <!-- 幽靈狀態與規則提示 -->
+        <div id="ghost-msg" class="hidden bg-gray-800 text-gray-400 p-1 rounded-lg text-center mb-1 font-bold text-xs border border-gray-600 flex-none tracking-widest">👻 幽靈狀態：無法影響戰局</div>
         
-        <div class="text-center text-[10px] text-red-400 font-bold mb-2 bg-gray-900 p-1 rounded-md flex-none tracking-tighter">
-            ⚠️ 陣營平均能量 < 60 扣一命
+        <div class="text-center text-[10px] text-red-400 font-bold mb-2 bg-red-900/20 p-1 rounded-md flex-none tracking-tighter">
+            ⚠️ 陣營平均能量 < 60 則扣一命
         </div>
 
-        <!-- 即時能量戰況 (高度縮減) -->
+        <!-- 即時能量戰況 -->
         <div class="grid grid-cols-2 gap-2 mb-2 flex-none">
-            <div class="bg-panel p-1.5 rounded-lg border border-alien text-center">
+            <div class="bg-panel p-1 rounded-lg border border-alien text-center">
                 <div class="text-alien font-bold text-[10px]">外星總能</div>
-                <div id="stat-a" class="text-2xl font-black text-white">0</div>
+                <div id="stat-a" class="text-2xl font-black text-white leading-none">0</div>
             </div>
-            <div class="bg-panel p-1.5 rounded-lg border border-earth text-center">
+            <div class="bg-panel p-1 rounded-lg border border-earth text-center">
                 <div class="text-earth font-bold text-[10px]">地球總能</div>
+                <div id="stat-b" class="text-2xl font-black text-white leading-none">0</div>
             </div>
         </div>
 
@@ -534,31 +536,31 @@
         <div class="flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
             <!-- 貢獻選擇 -->
             <div class="flex-1 flex flex-col">
-                <label class="block text-gray-400 font-bold mb-1 text-sm text-center">📦 能量輸送目標</label>
-                <div class="flex items-center h-16">
-                    <button onclick="toggleChoice('food', 'A')" class="w-14 h-full rounded-l-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-left text-gray-500"></i></button>
+                <label class="block text-gray-400 font-bold mb-0.5 text-xs text-center">📦 能量輸送目標</label>
+                <div class="flex items-center h-full max-h-16">
+                    <button onclick="toggleChoice('food', 'A')" class="w-12 h-full rounded-l-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-left text-gray-500"></i></button>
                     <!-- 中間顯示 -->
                     <div id="food-display-box" class="flex-1 h-full flex flex-col items-center justify-center border-y border-gray-600 bg-gray-900/50">
                         <div id="food-display-text" class="text-lg font-bold text-gray-500">...</div>
                     </div>
-                    <button onclick="toggleChoice('food', 'B')" class="w-14 h-full rounded-r-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-right text-gray-500"></i></button>
+                    <button onclick="toggleChoice('food', 'B')" class="w-12 h-full rounded-r-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-right text-gray-500"></i></button>
                 </div>
             </div>
             
             <!-- 陣營選擇 -->
             <div class="flex-1 flex flex-col">
-                <label class="block text-gray-400 font-bold mb-1 text-sm text-center">🚀 本人加入營地</label>
-                <div class="flex items-center h-16">
-                    <button onclick="toggleChoice('group', 'A')" class="w-14 h-full rounded-l-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-left text-gray-500"></i></button>
+                <label class="block text-gray-400 font-bold mb-0.5 text-xs text-center">🚀 本人加入營地</label>
+                <div class="flex items-center h-full max-h-16">
+                    <button onclick="toggleChoice('group', 'A')" class="w-12 h-full rounded-l-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-left text-gray-500"></i></button>
                     <!-- 中間顯示 -->
                     <div id="group-display-box" class="flex-1 h-full flex flex-col items-center justify-center border-y border-gray-600 bg-gray-900/50">
                         <div id="group-display-text" class="text-lg font-bold text-gray-500">...</div>
                     </div>
-                    <button onclick="toggleChoice('group', 'B')" class="w-14 h-full rounded-r-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-right text-gray-500"></i></button>
+                    <button onclick="toggleChoice('group', 'B')" class="w-12 h-full rounded-r-xl bg-gray-800 border border-gray-600 text-xl"><i class="fa-solid fa-chevron-right text-gray-500"></i></button>
                 </div>
             </div>
         </div>
-        <div class="text-center text-[10px] text-gray-600 mt-1 uppercase">Waiting for Command</div>
+        <div class="text-center text-[9px] text-gray-700 mt-1 uppercase tracking-widest">Awaiting Command from Fleet</div>
     </div>
 
     <!-- 4. 結算畫面 -->
